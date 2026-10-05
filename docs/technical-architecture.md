@@ -2,654 +2,662 @@
 
 ## 1. Purpose
 
-This document defines the technical architecture for a configurable Inventory Management System with integrated Point of Sale (POS) capabilities. The architecture is designed for flexibility, performance, auditability, and future scale while supporting multi-warehouse, multi-role, and multi-channel inventory operations.
+This document defines the technical architecture for a configurable Inventory Management System with an integrated Point of Sale (POS) module. The system is designed for a PHP/Laravel implementation and is optimized for small to medium businesses that need robust inventory management, flexible configuration, and retail transaction handling.
+
+The architecture prioritizes:
+
+- transactional correctness for inventory updates
+- business configuration without heavy code changes
+- modular structure for maintainability
+- secure role-based access
+- support for multi-warehouse and multi-location inventory
+- POS operations, returns, and reconciliation
+- reporting and auditability
 
 ## 2. Architectural Goals
 
-- Provide real-time inventory visibility
-- Ensure transactional integrity for stock updates
-- Support configurable business rules and custom fields
-- Integrate inventory management with POS transactions
-- Support multiple warehouses, locations, and users
-- Maintain complete audit trails for accountability
-- Ensure performance under high transaction volume
-- Keep architecture modular and extensible
+- Deliver a reliable and configurable inventory platform
+- Represent a single source of truth for stock and product data
+- Support retail, wholesale, and warehouse workflows
+- Keep all stock changes transactional and auditable
+- Allow business-specific configuration through admin settings
+- Support POS-driven stock deductions and returns
+- Scale from a modular monolith to a more distributed system if needed
 
-## 3. Core Principles
+## 3. Recommended Tech Stack
 
-1. Single source of truth for inventory data
-2. Transaction-safe stock updates
-3. Event-driven notifications and alerts
-4. Separation of concerns across layers
-5. Secure role-based access control
-6. Configurable workflows and attributes
-7. Data-driven reporting and analytics
-8. Scalable architecture for future growth
+### 3.1 Backend
 
-## 4. High-Level Architecture
+- PHP 8.2+
+- Laravel 11
+- Laravel Sanctum or JWT for authentication
+- Spatie Laravel Permission for RBAC
+- Laravel Horizon for queue monitoring (optional)
+- Laravel Scheduler for periodic jobs
+- Laravel Excel for imports/exports (optional)
 
-The system is composed of the following major layers:
+### 3.2 Frontend
 
-### 4.1 Presentation Layer
+- Blade templates with Bootstrap or Tailwind CSS for admin screens
+- Livewire for interactive inventory and POS interfaces if we want a simple PHP-native UI
+- Optional Vue.js or React for a more advanced POS interface
+- Standard server-rendered UI for operational screens
 
-Responsible for user interaction and visualization.
+### 3.3 Database
 
-- Web application for admin, inventory, and POS staff
-- Role-based dashboards and reports
-- Mobile-friendly responsive UI
+- PostgreSQL (preferred for strong relational integrity and reporting)
+- MySQL is possible but PostgreSQL is the better fit for inventory audit, reporting, and future growth
+
+### 3.4 Caching and Job Processing
+
+- Redis for caching, queue jobs, session storage, and rate limiting
+- Laravel Queue system for async tasks such as alerts, reports, and notifications
+
+### 3.5 File Storage
+
+- Local storage for development
+- S3-compatible object storage for receipts, attachments, product images, and exported reports in production
+
+### 3.6 Monitoring
+
+- Laravel logs
+- Sentry for application monitoring
+- Supervisor for queue workers
+- Prometheus/Grafana or a simple observability stack if needed
+
+## 4. Architectural Style
+
+This project should start as a modular monolith and remain viable for medium-sized businesses without immediate microservice complexity.
+
+Why this is the right choice:
+
+- simpler to build and maintain in PHP/Laravel
+- easier to reason about inventory transactions and audit flows
+- lower operational overhead than a distributed system at MVP stage
+- easier to evolve into separate services later if business scale demands it
+
+The application will be organized into domains, each with its own models, services, controllers, and policies.
+
+## 5. High-Level Architecture
+
+### 5.1 Presentation Layer
+
+- Admin dashboard for management and operations
+- Inventory dashboard for stock visibility
+- Procurement dashboard for supplier and purchase orders
 - POS interface for cashier operations
-- Search, filtering, and inventory lookup
+- Reporting screens for daily sales, stock summaries, and movement history
 
-### 4.2 Application Layer
+### 5.2 Application Layer
 
-Responsible for business logic, validation, and orchestration.
+- User management and roles
+- Product catalog management
+- Inventory service layer
+- Supplier and purchase order management
+- Sales order and fulfillment logic
+- POS transaction processing
+- Stock movement engine
+- Report generation service
+- Alert engine
+- Configuration management
+- Audit trail engine
 
-- Product management service
-- Inventory service
-- Purchase order service
-- Sales order service
-- POS service
-- Stock movement service
-- Reporting service
-- Alert service
-- Configuration service
-- Audit service
-- Authentication and authorization service
+### 5.3 Data Layer
 
-### 4.3 Integration Layer
+- PostgreSQL database
+- Transactional storage for all core business records
+- Migration-based schema evolution
+- Reads optimized with indexes and summary tables
 
-Responsible for connecting external systems and services.
+### 5.4 Background Processing Layer
 
-- Payment gateway integration
-- Shipping provider integration
-- External ERP/CRM connectors
-- Notification service integration
-- Barcode / scanner input integration
-- Reporting and BI tools
-- Email/SMS services
-
-### 4.4 Data Layer
-
-Responsible for persistence and data consistency.
-
-- PostgreSQL primary relational database
-- Redis for caching and session support
-- Elasticsearch or analytics DB for report search (optional)
-- Object storage for receipts, invoices, and attachments
-
-### 4.5 Background Processing Layer
-
-Responsible for asynchronous tasks.
-
-- Reorder alerts
-- Daily summaries and reports
-- Synchronization jobs
-- Email/SMS notifications
-- Scheduled tasks and audit cleanup
-
-## 5. System Component Breakdown
-
-### 5.1 Admin Portal
-
-Used by business administrators and managers.
-
-Features:
-- user management
-- role and permission assignment
-- warehouse configuration
-- product hierarchy setup
-- custom field creation
-- POS terminal configuration
-- alerts and thresholds configuration
-- reporting templates
-
-### 5.2 Inventory Management Portal
-
-Used by inventory and warehouse teams.
-
-Features:
-- stock overview by warehouse and product
-- stock count and adjustments
-- transfer management
-- receiving and stock-in logs
-- expiration tracking
-- stock movement browser
 - low-stock alerts
+- daily sales summary generation
+- scheduled reports
+- notifications
+- queues for delayed processing and job retries
 
-### 5.3 Procurement Portal
+## 6. Domain Structure
 
-Used by purchasing teams.
+Laravel project structure should reflect business domains. Suggested folder structure:
 
-Features:
-- supplier maintenance
-- purchase order creation and tracking
-- receiving workflow
-- supplier performance analytics
-- item cost history
+- app/
+  - Console/
+  - Exceptions/
+  - Http/
+    - Controllers/
+      - Admin/
+      - Inventory/
+      - POS/
+      - Purchases/
+      - Sales/
+    - Middleware/
+    - Requests/
+  - Models/
+  - Policies/
+  - Services/
+    - Inventory/
+    - Purchase/
+    - Sales/
+    - POS/
+    - Reporting/
+    - Alerts/
+    - Audit/
+  - Jobs/
+  - Notifications/
+  - Events/
+  - Listeners/
+  - Providers/
+- database/
+  - factories/
+  - migrations/
+  - seeders/
+- routes/
+  - web.php
+  - api.php
+- resources/
+  - views/
+  - js/
+  - css/
+- storage/
+- tests/
 
-### 5.4 Sales and Order Portal
+## 7. Key Subsystems
 
-Used by sales and fulfillment teams.
+### 7.1 Admin and Configuration Module
 
-Features:
-- order creation and validation
-- stock reservation
-- fulfillment workflows
-- customer management
-- return processing
+Responsibilities:
+- create/update/delete users
+- assign roles and permissions
+- configure warehouses, locations, and statuses
+- manage custom product attributes
+- configure default taxes, currencies, discounts, and POS settings
+- define alert thresholds and notification rules
 
-### 5.5 POS Module
+### 7.2 Product Catalog Module
 
-Used by retail/cashier staff.
+Responsibilities:
+- product CRUD
+- SKU and barcode management
+- category and variant management
+- cost and pricing management
+- supplier association
+- custom field configuration
 
-Features:
-- quick product lookup by barcode or SKU
-- quantity entry and product selection
-- pricing and discount application
-- cash/card payment processing
-- receipt printing
-- transaction completion and inventory reduction
-- refund and exchange handling
-- end-of-day cash reconciliation
+### 7.3 Inventory Management Module
 
-## 6. Suggested Technology Stack
+Responsibilities:
+- stock overview by product and warehouse
+- location-level tracking
+- reservations and allocations
+- quantity adjustments and corrections
+- stock movement history
+- stock counts and reconciliation
+- batch/lot inventory if needed
 
-### 6.1 Frontend
+### 7.4 Procurement Module
 
-- React
-- TypeScript
-- Vite or Next.js (depending on project preference)
-- Tailwind CSS or component library
-- State management: Zustand, Redux Toolkit, or React Query
-- POS UI optimized for fast cashier interactions
+Responsibilities:
+- supplier data management
+- purchase order creation
+- receiving and validation
+- stock-in posting
+- cost tracking and supplier history
 
-### 6.2 Backend
+### 7.5 Sales and Fulfillment Module
 
-- Node.js with NestJS or Python with FastAPI
-- REST API for internal system operations
-- Optional GraphQL if needed
-- JWT authentication and RBAC middleware
-- Validation and business rule engine
+Responsibilities:
+- sales order creation
+- inventory reservation
+- order status management
+- fulfillment workflow
+- returns and exchanges
+- customer association
 
-### 6.3 Database
+### 7.6 POS Module
 
-- PostgreSQL
-- Tables normalized for transactional integrity
-- Foreign keys and indexes for high-volume queries
-- JSON fields used selectively for custom attributes
+Responsibilities:
+- cashier session and terminal management
+- quick product lookup by barcode or name
+- cart and line item management
+- tax and discount calculation
+- payment handling
+- receipt generation
+- transaction finalization
+- inventory deduction and movement records
+- refund and exchange processing
+- daily close and reconciliation
 
-### 6.4 Caching and Session Handling
+### 7.7 Reporting and Analytics Module
 
-- Redis for:
-  - session cache
-  - product lookup cache
-  - alert queueing
-  - rate limiting
-  - frequently accessed reports
+Responsibilities:
+- inventory summary and stock aging reports
+- sales and POS reports
+- supplier performance
+- movement reports
+- low-stock alerts
+- dashboard visuals and KPI summaries
 
-### 6.5 Message Queue / Background Jobs
+### 7.8 Audit and Security Module
 
-- RabbitMQ or Kafka for asynchronous tasks
-- Used for:
-  - low-stock notifications
-  - POS event processing
-  - daily reconciliation jobs
-  - report generation
-  - external integrations
+Responsibilities:
+- maintain change history
+- log user actions and important system events
+- enforce authorization policies
+- track privilege escalation and security-sensitive actions
 
-### 6.6 Storage
+## 8. Core Business Rules and Design Constraints
 
-- S3-compatible object storage for attachments, receipts, and product images
-- Local or cloud file storage for exported reports
+The following rules are non-negotiable:
 
-### 6.7 Monitoring and Observability
+- inventory updates must be transactional
+- all stock-changing actions must write stock movement records
+- no stock mutation without actor and reason metadata
+- system must prevent negative stock unless explicitly allowed by config
+- stock changes must be auditable and traceable
+- POS sales should immediately reduce inventory after successful transaction
+- refunds should restore inventory appropriately
+- low-stock triggers must be based on configurable thresholds
 
-- Prometheus/Grafana or equivalent
-- OpenTelemetry tracing
-- Log aggregation with ELK, Loki, or cloud-native logging
-- Health checks and critical alerting
+## 9. Transactional Inventory Model
 
-## 7. Design Pattern and Services
+The system should use database transactions for all stock mutations. A canonical pattern should be applied across the app:
 
-The system should be organized around modular services and bounded contexts.
+1. validate inventory availability or requested quantity
+2. start an explicit database transaction
+3. update or reserve inventory
+4. create stock movement row with metadata
+5. create related audit log
+6. update relevant order or POS records
+7. commit transaction
+8. trigger async alerts/jobs if needed
 
-### 7.1 Bounded Contexts
+If any step fails, rollback the transaction.
 
-- Product Catalog
-- Inventory Control
-- Procurement
-- Sales/Order Fulfillment
-- POS / Retail Transactions
-- User Administration
-- Reporting and Analytics
-- Configuration Management
+This must be enforced in the service layer, not only in controllers.
 
-### 7.2 Core Service Responsibilities
+## 10. Data Architecture
 
-#### Product Service
-- create/update/delete products
-- manage variants
-- apply custom attributes
-- validate SKUs and barcodes
+### 10.1 Primary Database: PostgreSQL
 
-#### Inventory Service
-- track stock by product/location
-- reserve and release inventory
-- process adjustments
-- create movement records
-- validate stock availability
+Recommended schema domains:
 
-#### Purchase Service
-- create PO records
-- receive goods
-- validate quantity differences
-- update stock ledger
+- users and authorization
+- products and variants
+- warehouses and locations
+- inventory items and stock tables
+- suppliers and purchase orders
+- customers and sales orders
+- POS terminal and transaction tables
+- stock movement and audit tables
+- alerts and configuration settings
 
-#### Sales Service
-- create sales orders
-- manage fulfillment and delivery
-- reserve stock and release on cancellation
-- handle returns and exchanges
+### 10.2 Recommended Table Groups
 
-#### POS Service
-- process cashier transactions
-- apply discounts and taxes
-- create receipt records
-- update inventory in a transaction-safe way
-- settle tender types and reconcile daily totals
+#### Users and Security
+- users
+- roles
+- permissions
+- model_has_roles
+- model_has_permissions
 
-#### Alert Service
-- evaluate stock thresholds
-- notify endpoints and users
-- centralize alert lifecycle management
+#### Product Domain
+- categories
+- brands
+- products
+- product_variants
+- product_attributes
+- product_attribute_values
 
-#### Reporting Service
-- compute aggregated dashboards
-- generate daily summaries
-- produce operational reports
+#### Warehouse and Inventory
+- warehouses
+- locations
+- inventory_items
+- stock_movements
+- stock_adjustments
+- stock_counts
+- stock_count_items
 
-#### Audit Service
-- log actions and changes
-- maintain immutable audit trails
-- support compliance checks
+#### Procurement
+- suppliers
+- purchase_orders
+- purchase_order_items
+- goods_receipts
+- goods_receipt_items
 
-## 8. Inventory and POS Transaction Integrity
-
-### 8.1 Inventory Transaction Model
-
-All inventory-affecting actions must be performed as transactional database operations. This includes:
-
-- purchase receiving
-- sales output
-- re-stock adjustments
-- transfers
+#### Sales and POS
+- customers
+- sales_orders
+- sales_order_items
+- pos_terminals
+- pos_transactions
+- pos_transaction_items
+- payments
+- refunds
 - returns
-- negative inventory corrections
-- POS sales deductions
 
-Patterns:
-- begin transaction
-- validate sufficient stock
-- update inventory balances
-- insert movement record
-- insert audit log
-- commit transaction
+#### Alerts and Audit
+- alerts
+- alert_recipients
+- audit_logs
+- settings
+- config_values
 
-In case of an error, rollback all changes.
+## 11. Inventory and POS Interaction Model
 
-### 8.2 Transaction Safety Rules
+### 11.1 Product Lookup
 
-- Never adjust quantity without writing a movement record
-- Never allow negative stock unless explicitly allowed by a business configuration
-- Every stock mutation must include actor, timestamp, and reason
-- Inventory calculations should derive from movement history for audit quality
-- POS sales should create both a POS transaction record and an inventory movement record
+POS product search must support:
+- SKU lookup
+- barcode lookup
+- product name search
+- category filter
+- variant display
 
-## 9. Data Architecture
+### 11.2 Cart and Pricing
 
-### 9.1 Relational Model
+During POS transactions:
+- product data is loaded from the product catalog
+- stock is validated against warehouse/terminal configuration
+- tax and discounts are computed according to configured rules
+- line totals are calculated in the application layer
 
-The system uses PostgreSQL as the primary transactional database.
+### 11.3 Successful Sale Flow
 
-Key schema domains:
-- master data: products, customers, suppliers, users
-- inventory: stock, locations, batches, movement history
-- procurement: purchase orders and receipts
-- sales: orders, returns, invoicing, shipments
-- POS: terminals, transactions, payment details, receipts
-- configuration: custom fields, statuses, thresholds
-- audit: change logs and system events
+1. cashier opens terminal
+2. terminal loads current product catalog and pricing
+3. product is added to cart
+4. payment is captured or cash tendered
+5. sale is finalized
+6. transaction is saved
+7. inventory is decremented by quantity
+8. stock movement entry is created
+9. receipt is generated
+10. alerts are checked
 
-### 9.2 Configuration Model
+### 11.4 Refund and Exchange Flow
 
-The configuration layer allows business-specific behavior without requiring code changes.
+- refund creates a reverse movement
+- inventory is restored to the selected warehouse/location
+- related audit log is generated
+- customer refund history is preserved
 
-Examples:
-- custom fields on products
-- configurable discount policies
-- stock status definitions
-- default warehouse per POS terminal
-- low-stock threshold by product or category
-- approval requirements for stock adjustments
+### 11.5 Closing and Reconciliation
 
-Implementation approach:
-- configuration table with key-value JSON or structured columns
-- tenant/business scope or multi-org support
-- admin UI for dynamic configuration
+At end-of-day:
+- POS terminal totals are reconciled
+- cash summary matches expected amount
+- mismatches are flagged
+- cashier confirmation is recorded
+- settlement reports are generated
 
-### 9.3 Custom Attributes
+## 12. Service Layer Architecture
 
-Some data is not known ahead of time. To support configurability, the system should permit two approaches:
+The system should use domain services rather than putting business logic in controllers.
 
-1. Structured tables for known entities
-2. JSON-based custom attributes for dynamic fields
-
-This keeps the schema flexible while maintaining performance for standard operations.
-
-## 10. Domain Communication and Interfaces
-
-### 10.1 Internal APIs
-
-The application services communicate through synchronous service calls or internal APIs. The expected interfaces include:
+### 12.1 Example Services
 
 - ProductService
 - InventoryService
+- WarehouseService
 - PurchaseOrderService
+- GoodsReceiptService
 - SalesOrderService
 - POSService
-- AlertService
+- PaymentService
 - ReportingService
+- AlertService
 - AuditService
+- ConfigurationService
 
-### 10.2 External APIs
+### 12.2 Responsibility Boundaries
 
-- Payment gateway API
-- Email/SMS notifications
-- ERP integration endpoints
-- Shipping tracking APIs
-- Accounting integration API
+- Controllers: HTTP-level orchestration
+- Services: business logic and orchestration
+- Models: persistence and relationships
+- Policies: authorization checks
+- Jobs: background work
+- Resources/Collections: API response shaping
 
-### 10.3 Async Event Flow
+## 13. Configuration Design
 
-Example event-driven process:
+To satisfy the “configurable system” requirement, configuration should not be hardcoded into the application logic.
 
-- POS sale completed
-- POS service updates transaction and writes movement entries
-- Event emitted: inventory.updated
-- Alert service checks reorder thresholds
-- Notification service sends low-stock or sales summary alerts
+### 13.1 Configurable Elements
 
-This reduces tight coupling between services and allows asynchronous processing for reporting and alerts.
+- product custom fields
+- stock status values
+- alert threshold rules
+- default tax rates
+- discount policies
+- warehouse or branch behavior
+- POS terminal settings
+- movement reason codes
+- receipt templates
+- user role permissions
 
-## 11. POS Architecture Design
+### 13.2 Implementation Pattern
 
-### 11.1 POS Components
+Use a `settings` or `config_values` table with JSON content or structured fields, for example:
 
-A POS solution should include:
-- product lookup
-- cart management
-- pricing engine
-- discount engine
-- payment processing
-- receipt printing
-- transaction journal
-- daily closing workflow
+- key
+- value
+- category
+- scope (global, warehouse, terminal, user)
+- created_at
+- updated_at
 
-### 11.2 POS Processing Flow
+This allows business users or admins to adjust configuration without redeploying code.
 
-1. Cashier logs in to POS terminal
-2. Terminal loads product catalog and pricing config
-3. Cashier scans or selects product
-4. System validates stock availability
-5. Product is added to cart
-6. Customer chooses payment method
-7. Payment is processed
-8. Sale transaction is recorded
-9. POS service reduces inventory and creates stock movement
-10. Receipt is printed or sent digitally
-11. End-of-day reconciliation is performed by manager
+## 14. Alerting and Background Jobs
 
-### 11.3 POS Inventory Trigger Model
+Use Laravel queues and scheduled jobs for these operations:
 
-When a POS transaction is finalized:
-- reserve inventory at transaction start
-- confirm payment and finalize sale
-- create stock-out movement
-- reduce inventory quantity
-- log audit entry
-- update alerts if inventory reaches threshold
+- low-stock notifications
+- out-of-stock alerts
+- near-expiry notifications
+- daily summaries
+- report generation
+- terminal reconciliation reminders
+- stock count due dates
 
-### 11.4 POS Reversal Handling
+### 14.1 Example Alert Types
 
-If a transaction is voided or refunded:
-- reverse sale quantity
-- restore inventory with return movement
-- create refund transaction entry
-- maintain audit trail for reversal
+- low_stock
+- stock_out
+- stock_mismatch
+- near_expiry
+- damaged_stock
+- purchase_delay
 
-## 12. Security Design
+## 15. Security Design
 
-### 12.1 Authentication and Authorization
+### 15.1 Authentication
 
-- secure login with MFA option
-- JWT-based access tokens
-- RBAC checks on endpoints and actions
-- permission mapping for admin vs. operational roles
+- Laravel built-in authentication or Sanctum
+- session-based and API token support depending on business need
+- MFA support for admin users if needed
 
-### 12.2 Data Protection
+### 15.2 Authorization
 
-- encrypted traffic via HTTPS
-- hashed passwords using bcrypt/Argon2
-- secure secrets storage using environment variables or vault
-- limited access to audit logs and payment data
+Use Spatie Permission or a similar policy-based system:
 
-### 12.3 Audit and Compliance
+- Admin
+- Inventory Manager
+- Warehouse Staff
+- Procurement Officer
+- Sales Manager
+- POS Cashier
+- Auditor
+- Reports Analyst
 
-- log all critical actions
-- include actor, timestamp, entity, changes, and source
-- protect audit logs from tampering
-- provide exported reports for review
+Permissions should be enforced at both:
+- route/controller level
+- service level for sensitive operations
 
-## 13. Scalability and Performance Design
+### 15.3 Security Controls
 
-### 13.1 Horizontal Scaling
+- CSRF protection for web requests
+- XSS prevention in views
+- sanitized inputs and validation rules
+- role-based restrictions for stock adjustment and pricing changes
+- audit logging of admin and finance-sensitive operations
 
-- run multiple application instances behind a load balancer
-- use stateless API servers
-- keep database as shared transactional source of truth
+## 16. Reporting Design
 
-### 13.2 Caching Strategy
+### 16.1 Reporting Philosophy
 
-Use Redis to cache:
-- frequently queried products
-- active warehouse inventory summaries
-- POS pricing lookups
-- user roles and permissions
-- commonly accessed dashboard metrics
+Use query-optimized reports from the transactional database for operational reporting, while using summary tables for high-level performance dashboards.
 
-### 13.3 Query Optimization
+### 16.2 Example Reports
 
-- indexes on product SKU, barcode, warehouse, movement timestamps
-- partition large transactional tables by date or warehouse where needed
-- pagination for large result sets
-- aggregated summary tables for reporting
-
-## 14. Reporting and Analytics Architecture
-
-### 14.1 Reporting Pattern
-
-- operational reports query the transactional database directly
-- summary tables and materialized views support dashboard performance
-- reporting jobs compute daily or hourly aggregates
-- BI layer can pull from a reporting database or warehouse
-
-### 14.2 Key Dashboard Metrics
-
-- total inventory value
-- low-stock count
-- fast movers
-- top-selling products
-- POS daily sales
-- stock discrepancy count
-- supplier fill rate
-- refund rate
-- revenue by channel
-
-## 15. Deployment Architecture
-
-### 15.1 Recommended Production Topology
-
-- API servers behind a load balancer
-- PostgreSQL database with replication and backups
-- Redis for cache and queues
-- Background worker processes for jobs and alerts
-- Object storage for attachments and generated files
-- Monitoring stack and log aggregator
-- CI/CD pipeline for build, test, and deploy
-
-### 15.2 Containerization
-
-Use Docker containers for:
-- application backend
-- frontend application
-- worker jobs
-- database migration tools
-- Redis
-- Nginx or reverse proxy
-
-### 15.3 CI/CD Pipeline
-
-Recommended stages:
-1. lint and static checks
-2. unit tests
-3. integration tests
-4. build artifacts
-5. deployment to staging
-6. smoke tests
-7. production deployment
-
-## 16. Fault Tolerance and Recovery
-
-- database backups and point-in-time recovery
-- application restart without data loss
-- event replay capability from queue when needed
-- alerting on unhealthy services
-- automatic retries for integration calls
-- configuration fallback values when external systems fail
-
-## 17. Example System Flows
-
-### 17.1 Purchase Receiving Flow
-
-1. User creates purchase order
-2. Supplier delivers goods
-3. Goods received entry is posted
-4. Receiving service validates quantity and items
-5. Inventory service creates stock-in movement
-6. Inventory quantities are updated
-7. Purchase order status is updated
-8. Audit log is generated
-9. Alert service checks reorder levels if necessary
-
-### 17.2 POS Sale Flow
-
-1. Cashier opens till
-2. Product is scanned
-3. Pricing and tax are computed
-4. Inventory availability is checked
-5. Customer payment is processed
-6. Sale is finalized
-7. POS service creates POS transaction and movement
-8. Inventory balance is reduced
-9. Receipt is printed
-10. Daily cash reconciliation is performed
-
-### 17.3 Transfer Flow
-
-1. User initiates stock transfer
-2. Source warehouse quantity is validated
-3. Inventory service creates out movement from source
-4. Destination receives stock-in movement
-5. Both locations update balances
-6. Audit records are created
-
-## 18. Technical Risks and Mitigation
-
-### Risk: Negative inventory bugs
-Mitigation:
-- enforce validation before each mutation
-- transaction boundaries
-- unit tests covering stock edge cases
-
-### Risk: Inventory drift between systems
-Mitigation:
-- single transaction log and movement history
-- reconciliations and audits
-
-### Risk: POS downtime
-Mitigation:
-- offline queue support in future phase
-- terminal redundancy and local data caching
-
-### Risk: Slow reporting
-Mitigation:
-- summary tables, caching, and indexing
-- asynchronous report generation
-
-### Risk: Security issues
-Mitigation:
-- RBAC, JWT, secure secret handling, code audits
-
-## 19. Roadmap for Implementation
-
-### Phase 1: Core Inventory System
-- product catalog
-- warehouse management
-- stock tracking
-- purchase orders
+- inventory summary by warehouse
+- low-stock products
 - stock movement history
-- basic reports
+- sales by item, category, date, and store
+- daily POS summary
+- supplier performance
+- return rates and damaged stock
+- inventory valuation
 
-### Phase 2: POS and Sales
-- POS terminal setup
-- retail transactions
-- discount engine
-- refunds and exchanges
-- end-of-day closing
+### 16.3 Reporting Data Sources
 
-### Phase 3: Advanced Features
-- integrations with payment and accounting systems
-- advanced reporting and BI
-- mobile app / warehouse scanners
-- offline POS mode
-- predictive analytics
+- direct relational queries for real-time inventory
+- materialized summaries for dashboard KPI tables
+- cron-driven nightly summaries if needed
 
-## 20. Recommended Architecture Decision Summary
+## 17. Observability, Maintenance, and Support
 
-- PostgreSQL for transactional data
-- Redis for caching and messaging support
-- React frontend with POS-specific UX
-- NestJS or FastAPI backend with modular services
-- event-driven background jobs for alerts and reporting
-- RBAC-first security design
-- immutable movement records for inventory integrity
+### 17.1 Logging
 
-## 21. Conclusion
+- Laravel logs for system exceptions and actions
+- structured logs for POS transactions, inventory mutations, and external API calls
+- database logs or audit tables for important events
 
-This architecture provides a robust and flexible foundation for a configurable Inventory Management System with integrated POS capabilities. It prioritizes transactional correctness, accessibility, configuration flexibility, and future scale. By separating domain services, enforcing inventory safety rules, and supporting modular expansion, the solution can evolve from an MVP into a mature enterprise-grade system.
+### 17.2 Health Checks
 
-The design is suitable for retail, wholesale, distribution, and mixed-operational business models while preserving clear control over stock and financial accuracy.
+- application health endpoint
+- database connectivity checks
+- queue worker health monitoring
+- storage access checks
 
-## 22. Next Recommended Deliverable
+### 17.3 Deployment Strategy
 
-The next logical document is a database schema and table design document, including:
+- Docker-based local development and containerized deployment
+- environment separation: local, staging, production
+- CI/CD pipeline using GitHub Actions or another CI tool
+- migrations run automatically in deployment workflow
+
+## 18. Scalability Strategy
+
+This system should be designed to remain sustainable as business size grows.
+
+### 18.1 Current Stage
+
+- modular Laravel monolith
+- one PostgreSQL database
+- Redis for queue and cache
+- single app deployment with multiple workers
+
+### 18.2 Growth Path
+
+- separate reporting service or analytics database
+- partition large transactional tables by month or warehouse
+- move sales or POS tasks into dedicated workers if necessary
+- add external integrations via events and APIs
+- later migrate to microservices only when the business demands it
+
+## 19. POS-Specific Architecture
+
+### 19.1 POS UI Requirements
+
+The POS interface should be:
+- fast and simple
+- optimized for barcode scanning and keyboard entry
+- resilient to interrupted sessions
+- friendly for cashier roles
+- able to support discounts, tax, returns, and receipts
+
+### 19.2 POS Data Flow
+
+- cashier logs in to terminal
+- cart is stored in session or DB-based temp record
+- products are looked up and priced
+- sale is completed
+- transaction is saved in DB
+- inventory is decremented via InventoryService
+- movement record is written
+- payment data is stored securely
+- receipt is produced
+
+### 19.3 POS Reconciliation
+
+- cash drawer totals are tracked per terminal and cashier
+- end-of-day close produces summary reports
+- mismatches are flagged and require manager approval
+
+## 20. Example Laravel Implementation Pattern
+
+The application should use a pattern like the following:
+
+- Controllers call Services
+- Services orchestrate domain logic
+- Models define relationships and database access
+- Policies enforce access rules
+- Jobs handle background processing
+- Events can emit inventory updates or low-stock alerts
+
+Example:
+
+- POS sale request hits `PosTransactionController`
+- controller calls `PosTransactionService`
+- service validates cart, calculates totals, and calls InventoryService
+- inventory service creates stock movement entries and updates quantities
+- refund or return service mirrors the same pattern for reverse transactions
+
+## 21. Key Technical Risks and Mitigations
+
+### Risk: Inventory drift
+Mitigation: centralize all stock mutation logic in the `InventoryService` and only allow writes there.
+
+### Risk: Duplicate or non-transactional POS deductions
+Mitigation: wrap sale finalization and inventory writes in one database transaction.
+
+### Risk: Slow reports
+Mitigation: use indexes, summary tables, and queued report generation.
+
+### Risk: Security gaps in sensitive operations
+Mitigation: enforce RBAC at route, controller, and service layers; log all admin actions.
+
+### Risk: Uncontrolled custom configuration
+Mitigation: validate config keys, data types, and admin permissions.
+
+## 22. Technical Recommendation Summary
+
+For a PHP-first implementation, Laravel is the strongest and most practical choice. The application should be designed as a modular monolith with:
+
+- PostgreSQL as the transactional database
+- Redis for queues and caching
+- Laravel services for business logic
+- role-based authorization
+- event-driven and queued notifications
+- strict inventory transaction control
+- well-defined POS and inventory workflows
+
+This setup provides a good balance of speed, maintainability, and scalability while staying aligned with the project’s business goals.
+
+## 23. Next Recommended Deliverable
+
+The next document should be a Laravel database schema and migration plan, including:
 
 - core tables
-- relationship diagrams
-- indexes
-- inventory transaction logic
-- POS transaction schema
-- migration strategy
+- relationships
+- inventory movement logic
+- POS schema
+- migration order
+- examples of key Laravel migrations
+
+This will transition the project from architecture into implementation planning.
 
 ---
 
